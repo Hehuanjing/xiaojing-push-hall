@@ -289,6 +289,145 @@
       .layout { grid-template-columns: 1fr; }
       .banner h1 { font-size: 32px; }
     }
+
+    /* ---------- v1.1 搜索 ---------- */
+    .list-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+    }
+    .search-box { position: relative; flex: 1 1 200px; min-width: 0; }
+    .search-box .ico {
+      position: absolute;
+      left: 13px; top: 50%;
+      transform: translateY(-50%);
+      font-size: 12px;
+      color: var(--text-2);
+      pointer-events: none;
+    }
+    .search-box input {
+      width: 100%;
+      font: inherit;
+      font-size: 13.5px;
+      color: var(--text-1);
+      padding: 9px 14px 9px 33px;
+      border-radius: 999px;
+      border: 1.5px solid rgba(108, 111, 133, 0.22);
+      background: rgba(255, 255, 255, 0.85);
+      outline: none;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+    .search-box input::placeholder { color: rgba(108, 111, 133, 0.7); }
+    .search-box input:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 4px rgba(91, 95, 233, 0.12);
+    }
+    .count-chip { flex: none; font-size: 12px; color: var(--text-2); white-space: nowrap; }
+    .count-chip .mark { color: var(--primary-2); font-weight: 700; }
+
+    /* ---------- v1.1 条目动作区 ---------- */
+    .post-actions { flex: none; display: flex; align-items: center; gap: 2px; }
+    .btn-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      min-width: 32px; height: 32px;
+      padding: 0 8px;
+      font: inherit;
+      font-size: 14px;
+      line-height: 1;
+      color: var(--text-2);
+      background: transparent;
+      border: none;
+      border-radius: 9px;
+      cursor: pointer;
+      transition: color 0.2s ease, background 0.2s ease, transform 0.2s ease;
+    }
+    .btn-icon:hover { color: var(--primary); background: rgba(91, 95, 233, 0.1); transform: scale(1.1); }
+    .btn-icon.btn-del:hover { color: var(--danger); background: rgba(239, 68, 68, 0.1); transform: scale(1.1); }
+    .btn-like { font-size: 13px; font-weight: 600; }
+    .btn-like .num { font-size: 12px; }
+    .btn-like.liked {
+      color: #fff;
+      background: linear-gradient(120deg, var(--primary), var(--primary-2));
+      box-shadow: 0 4px 12px rgba(124, 77, 255, 0.32);
+      animation: likePop 0.34s ease;
+    }
+    .btn-like.liked:hover { color: #fff; transform: scale(1.06); }
+    @keyframes likePop {
+      0% { transform: scale(1); }
+      45% { transform: scale(1.18); }
+      100% { transform: scale(1); }
+    }
+
+    /* ---------- v1.1 编辑态 ---------- */
+    .post.editing {
+      position: relative;
+      border-color: rgba(124, 77, 255, 0.45);
+      box-shadow: 0 0 0 3px rgba(124, 77, 255, 0.12);
+    }
+    .post.editing::before {
+      content: "";
+      position: absolute;
+      left: 0; top: 14px; bottom: 14px;
+      width: 3px;
+      border-radius: 0 3px 3px 0;
+      background: var(--grad-brand);
+    }
+    .form-btns { display: flex; gap: 10px; }
+    .form-btns .btn-publish { flex: 1; width: auto; }
+    .btn-cancel {
+      display: none;
+      flex: none;
+      padding: 0 20px;
+      font: inherit;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-2);
+      background: rgba(255, 255, 255, 0.9);
+      border: 1.5px solid rgba(108, 111, 133, 0.25);
+      border-radius: 12px;
+      cursor: pointer;
+      transition: color 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+    }
+    .btn-cancel:hover {
+      color: var(--primary);
+      border-color: var(--primary);
+      background: rgba(91, 95, 233, 0.06);
+    }
+    .form-btns.edit-mode .btn-cancel { display: block; }
+
+    /* ---------- v1.1 热搜联动 ---------- */
+    .hot-item { cursor: pointer; }
+    .hot-item:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+    .hot-item .go {
+      flex: none;
+      font-size: 11px;
+      color: var(--primary);
+      white-space: nowrap;
+      opacity: 0;
+      transform: translateX(-4px);
+      transition: opacity 0.2s ease, transform 0.2s ease;
+    }
+    .hot-item:hover .go,
+    .hot-item:focus-visible .go { opacity: 1; transform: none; }
+
+    .flash { animation: flashRing 0.85s ease; }
+    @keyframes flashRing {
+      0%, 100% { box-shadow: 0 0 0 4px rgba(91, 95, 233, 0.12); }
+      40% { box-shadow: 0 0 0 8px rgba(124, 77, 255, 0.22); }
+    }
+
+    @media (max-width: 860px) {
+      .layout { grid-template-columns: minmax(0, 1fr); }
+      .card { min-width: 0; }
+      .search-box { flex: 1 1 100%; }
+      .list-head { align-items: stretch; }
+    }
   </style>
 </head>
 <body>
@@ -307,7 +446,7 @@
 
     <!-- 右侧：发布 + 我的推送 -->
     <div style="display:flex; flex-direction:column; gap:28px; min-width:0;">
-      <section class="card" aria-label="发布推送">
+      <section class="card" aria-label="发布推送" id="publishCard">
         <h2><span class="dot"></span>发布推送</h2>
         <p class="sub">记录此刻想法，仅保存在你的浏览器中</p>
         <div class="ls-warn" id="lsWarn">⚠ 当前浏览器环境不支持本地存储，数据仅在本页面内临时保留。</div>
@@ -320,14 +459,23 @@
             <label for="bodyInput">正文</label>
             <textarea id="bodyInput" maxlength="1000" placeholder="想推送点什么？写下来吧（最多 1000 字）"></textarea>
           </div>
-          <button type="submit" class="btn-publish">发 布</button>
+          <div class="form-btns" id="formBtns">
+            <button type="submit" class="btn-publish" id="submitBtn">发 布</button>
+            <button type="button" class="btn-cancel" id="cancelEditBtn">取消编辑</button>
+          </div>
           <div class="hint" id="hint"></div>
         </form>
       </section>
 
       <section class="card" aria-label="我的推送">
         <h2><span class="dot"></span>我的推送</h2>
-        <p class="sub" id="postCount">共 0 条推送</p>
+        <div class="list-head">
+          <div class="search-box">
+            <span class="ico">🔍</span>
+            <input type="search" id="searchInput" placeholder="搜索标题或正文…" autocomplete="off" aria-label="搜索我的推送">
+          </div>
+          <span class="count-chip" id="postCount">共 0 条</span>
+        </div>
         <div class="post-list" id="postList"></div>
       </section>
     </div>
@@ -355,31 +503,55 @@
     const hasLS = storageAvailable();
 
     function loadPosts() {
-      if (!hasLS) return memoryStore.posts ? memoryStore.posts.slice() : [];
+      if (!hasLS) return memoryStore.posts ? normalizeAll(memoryStore.posts) : [];
       try {
         const raw = localStorage.getItem(STORAGE_KEY);
         const arr = raw ? JSON.parse(raw) : [];
         if (!Array.isArray(arr)) return [];
-        // 过滤脏数据
-        return arr.filter(p => p && typeof p.id === "number" &&
-          typeof p.title === "string" && typeof p.body === "string" &&
-          typeof p.time === "number");
+        return normalizeAll(arr);
       } catch (e) {
         // JSON 解析失败等，回退为空
         return [];
       }
     }
 
-    function savePosts(posts) {
-      if (!hasLS) { memoryStore.posts = posts.slice(); return; }
+    // 兼容 v1.0 数据：补齐 likes / liked 字段并做长度与类型兜底
+    function normalizeAll(arr) {
+      return arr.filter(p => p && typeof p.id === "number" &&
+        (typeof p.title === "string" || typeof p.body === "string")
+      ).map(p => ({
+        id: p.id,
+        title: typeof p.title === "string" ? p.title.slice(0, 60) : "",
+        body: typeof p.body === "string" ? p.body.slice(0, 1000) : "",
+        time: typeof p.time === "number" ? p.time : Date.now(),
+        likes: typeof p.likes === "number" && p.likes > 0 ? Math.floor(p.likes) : 0,
+        liked: p.liked === true
+      }));
+    }
+
+    function savePosts(list) {
+      if (!hasLS) { memoryStore.posts = list.slice(); return false; }
       try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(posts));
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+        return true;
       } catch (e) {
-        // 存储已满等极端情况，静默降级
+        // 存储已满等极端情况，降级到内存并提示
+        memoryStore.posts = list.slice();
+        showHint("本地存储写入失败，本次改动重启后会丢失", false);
+        return false;
       }
     }
 
+    // 单调唯一 id，避免同一毫秒内连续发布产生重复 id
+    let idSeq = 0;
+    function nextId() {
+      idSeq += 1;
+      return Date.now() * 1000 + idSeq;
+    }
+
     let posts = loadPosts();
+    let editingId = null;   // 非空表示正在编辑该条推送
+    let keyword = "";       // 搜索关键词
 
     /* ================= 工具 ================= */
     function escapeHtml(str) {
@@ -405,6 +577,20 @@
       clearTimeout(showHint._t);
       showHint._t = setTimeout(() => { el.className = "hint"; }, 2600);
     }
+
+    function flash(el) {
+      el.classList.remove("flash");
+      void el.offsetWidth;
+      el.classList.add("flash");
+      setTimeout(() => el.classList.remove("flash"), 900);
+    }
+
+    /* ---------- 常用元素引用 ---------- */
+    const elPublishCard = document.getElementById("publishCard");
+    const elFormBtns = document.getElementById("formBtns");
+    const elSubmit = document.getElementById("submitBtn");
+    const elTitle = document.getElementById("titleInput");
+    const elBody = document.getElementById("bodyInput");
 
     /* ================= 内置模拟热搜 ================= */
     const HOT_TOPICS = [
@@ -434,86 +620,217 @@
       list.innerHTML = data.map((t, i) => {
         const n = i + 1;
         const rankCls = n <= 3 ? "rank r" + n : "rank";
+        const safeTitle = escapeHtml(t.title);
         return (
-          '<div class="hot-item" style="animation-delay:' + (i * 60) + 'ms">' +
+          '<div class="hot-item" role="button" tabindex="0" data-title="' + safeTitle + '"' +
+            ' aria-label="' + safeTitle + '，点击预填到发布表单"' +
+            ' style="animation-delay:' + (i * 60) + 'ms">' +
             '<span class="' + rankCls + '">' + n + '</span>' +
             '<div class="hot-main">' +
-              '<div class="hot-title">' + escapeHtml(t.title) + '</div>' +
+              '<div class="hot-title">' + safeTitle + '</div>' +
               '<div class="hot-meta">' +
                 '<span class="tag">' + escapeHtml(t.cat) + '</span>' +
                 '<span class="heat-bar"><i style="width:' + t.heat + '%"></i></span>' +
                 '<span class="heat-num">' + t.heat + ' 万热度</span>' +
               '</div>' +
             '</div>' +
+            '<span class="go">去发布 ›</span>' +
           '</div>'
         );
       }).join("");
     }
 
+    function prefillFromHot(title) {
+      if (editingId !== null) exitEdit(true);
+      elTitle.value = title || "";
+      elPublishCard.scrollIntoView({ behavior: "smooth", block: "start" });
+      elBody.focus({ preventScroll: true });
+      flash(elTitle);
+      showHint("已预填热点标题，写下你的看法吧～", true);
+    }
+
+    document.getElementById("hotList").addEventListener("click", e => {
+      const item = e.target.closest(".hot-item");
+      if (!item) return;
+      prefillFromHot(item.dataset.title || "");
+    });
+
+    document.getElementById("hotList").addEventListener("keydown", e => {
+      if (e.key !== "Enter" && e.key !== " ") return;
+      const item = e.target.closest(".hot-item");
+      if (!item) return;
+      e.preventDefault();
+      prefillFromHot(item.dataset.title || "");
+    });
+
     /* ================= 我的推送 ================= */
+    function filterPosts() {
+      const kw = keyword.trim().toLowerCase();
+      const sorted = posts.slice().sort((a, b) => b.time - a.time);
+      if (!kw) return { list: sorted, total: posts.length, kw: kw };
+      const hit = sorted.filter(p => (p.title + " " + p.body).toLowerCase().indexOf(kw) !== -1);
+      return { list: hit, total: posts.length, kw: kw };
+    }
+
     function renderPosts() {
       const list = document.getElementById("postList");
       const countEl = document.getElementById("postCount");
+      const result = filterPosts();
 
-      posts.sort((a, b) => b.time - a.time);
-      countEl.textContent = "共 " + posts.length + " 条推送";
+      countEl.innerHTML = result.kw && result.total > 0
+        ? "共 " + result.total + " 条 · 命中 <span class=\"mark\">" + result.list.length + "</span> 条"
+        : "共 " + result.total + " 条";
 
-      if (posts.length === 0) {
+      if (result.total === 0) {
         list.innerHTML =
           '<div class="empty"><div class="icon">📭</div>还没有推送，快来发布第一条吧！</div>';
         return;
       }
 
-      list.innerHTML = posts.map(p =>
-        '<article class="post">' +
+      if (result.list.length === 0) {
+        list.innerHTML =
+          '<div class="empty"><div class="icon">🔍</div>没有匹配「' + escapeHtml(keyword.trim()) + '」的推送' +
+          '<div style="font-size:12px;margin-top:8px;opacity:.8">换个关键词试试，或清空搜索框</div></div>';
+        return;
+      }
+
+      list.innerHTML = result.list.map(p => {
+        const editing = p.id === editingId;
+        return '<article class="post' + (editing ? " editing" : "") + '">' +
           '<div class="post-head">' +
             '<h3>' + escapeHtml(p.title) + '</h3>' +
             '<span class="post-time">' + formatTime(p.time) + '</span>' +
-            '<button class="btn-del" data-id="' + p.id + '" title="删除这条推送">✕</button>' +
+            '<div class="post-actions">' +
+              '<button class="btn-icon" data-action="edit" data-id="' + p.id + '"' +
+                ' title="编辑这条推送" aria-label="编辑推送">✎</button>' +
+              '<button class="btn-icon btn-like' + (p.liked ? " liked" : "") + '" data-action="like" data-id="' + p.id + '"' +
+                ' title="' + (p.liked ? "取消点赞" : "点赞") + '" aria-label="点赞" aria-pressed="' + (p.liked ? "true" : "false") + '">♥' +
+                (p.likes > 0 ? '<span class="num">' + p.likes + '</span>' : '') + '</button>' +
+              '<button class="btn-icon btn-del" data-action="delete" data-id="' + p.id + '"' +
+                ' title="删除这条推送" aria-label="删除推送">✕</button>' +
+            '</div>' +
           '</div>' +
           '<div class="post-body">' + escapeHtml(p.body) + '</div>' +
-        '</article>'
-      ).join("");
+        '</article>';
+      }).join("");
     }
 
+    /* ---------- 编辑态 ---------- */
+    function startEdit(post) {
+      editingId = post.id;
+      elTitle.value = post.title;
+      elBody.value = post.body;
+      elSubmit.textContent = "保存修改";
+      elFormBtns.classList.add("edit-mode");
+      renderPosts();
+      elPublishCard.scrollIntoView({ behavior: "smooth", block: "start" });
+      elTitle.focus({ preventScroll: true });
+      flash(elTitle);
+      showHint("正在编辑，可修改后保存", true);
+    }
+
+    function exitEdit(silent) {
+      editingId = null;
+      elFormBtns.classList.remove("edit-mode");
+      elSubmit.textContent = "发 布";
+      elTitle.value = "";
+      elBody.value = "";
+      renderPosts();
+      if (!silent) showHint("已取消编辑", true);
+    }
+
+    /* ---------- 列表动作委托 ---------- */
     document.getElementById("postList").addEventListener("click", e => {
-      const btn = e.target.closest(".btn-del");
+      const btn = e.target.closest("[data-action]");
       if (!btn) return;
       const id = Number(btn.dataset.id);
       const post = posts.find(p => p.id === id);
-      const label = post ? "「" + post.title.slice(0, 12) + (post.title.length > 12 ? "…" : "") + "」" : "这条推送";
-      if (!confirm("确定要删除" + label + "吗？")) return;
-      posts = posts.filter(p => p.id !== id);
-      savePosts(posts);
-      renderPosts();
-      showHint("已删除 ✓", true);
+      if (!post) return;
+      const action = btn.dataset.action;
+
+      if (action === "like") {
+        if (post.liked) {
+          post.liked = false;
+          post.likes = Math.max(0, post.likes - 1);
+        } else {
+          post.liked = true;
+          post.likes += 1;
+        }
+        savePosts(posts);
+        renderPosts();
+        return;
+      }
+
+      if (action === "edit") {
+        startEdit(post);
+        return;
+      }
+
+      if (action === "delete") {
+        const label = "「" + post.title.slice(0, 12) + (post.title.length > 12 ? "…" : "") + "」";
+        if (!confirm("确定要删除" + label + "吗？")) return;
+        posts = posts.filter(p => p.id !== id);
+        if (editingId === id) exitEdit(true);
+        savePosts(posts);
+        renderPosts();
+        showHint("已删除 ✓", true);
+      }
+    });
+
+    /* ---------- 搜索 ---------- */
+    const elSearch = document.getElementById("searchInput");
+    elSearch.addEventListener("input", () => {
+      clearTimeout(elSearch._t);
+      elSearch._t = setTimeout(() => {
+        keyword = elSearch.value;
+        renderPosts();
+      }, 120);
     });
 
     /* ================= 发布表单 ================= */
     document.getElementById("publishForm").addEventListener("submit", e => {
       e.preventDefault();
-      const titleEl = document.getElementById("titleInput");
-      const bodyEl = document.getElementById("bodyInput");
-      const title = titleEl.value.trim();
-      const body = bodyEl.value.trim();
+      const title = elTitle.value.trim();
+      const body = elBody.value.trim();
 
       if (!title && !body) { showHint("标题和正文不能都为空哦～", false); return; }
-      if (!title) { showHint("请填写标题", false); titleEl.focus(); return; }
-      if (!body) { showHint("请填写正文内容", false); bodyEl.focus(); return; }
+      if (!title) { showHint("请填写标题", false); elTitle.focus(); return; }
+      if (!body) { showHint("请填写正文内容", false); elBody.focus(); return; }
 
-      posts.push({
-        id: Date.now(),
-        title: title,
-        body: body,
-        time: Date.now()
-      });
+      if (editingId === null) {
+        posts.push({
+          id: nextId(),
+          title: title,
+          body: body,
+          time: Date.now(),
+          likes: 0,
+          liked: false
+        });
+        savePosts(posts);
+        renderPosts();
+        elTitle.value = "";
+        elBody.value = "";
+        elTitle.focus();
+        showHint("发布成功 ✓ 已保存到本地", true);
+        return;
+      }
+
+      const post = posts.find(p => p.id === editingId);
+      if (!post) { exitEdit(true); showHint("该推送已不存在", false); return; }
+
+      post.title = title;
+      post.body = body;
+      post.time = Date.now();
+      exitEdit(true);
       savePosts(posts);
       renderPosts();
+      showHint("修改已保存 ✓", true);
+    });
 
-      titleEl.value = "";
-      bodyEl.value = "";
-      titleEl.focus();
-      showHint("发布成功 ✓ 已保存到本地", true);
+    document.getElementById("cancelEditBtn").addEventListener("click", () => {
+      if (editingId === null) return;
+      exitEdit(false);
+      elTitle.focus();
     });
 
     /* ================= 初始化 ================= */
