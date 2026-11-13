@@ -1,0 +1,6 @@
+# 浏览器自动化临时输出
+.playwright-cli/
+
+# 系统文件
+Thumbs.db
+.DS_Store
