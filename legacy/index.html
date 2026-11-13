@@ -1,0 +1,856 @@
+<!--
+  历史归档 · 仅作参考，不再维护。
+  这是 v1.x 的单文件实现（原生 HTML + CSS + JavaScript，数据存于 localStorage: xjjg_posts）。
+  自 v2.0 起项目已改写为 Vue 3 + Pinia 工程，源码位于 src/，入口为本仓库根目录的 index.html。
+-->
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>小晶推送馆</title>
+  <style>
+    :root {
+      --primary: #5B5FE9;
+      --primary-2: #7C4DFF;
+      --accent: #FF7A9A;
+      --bg-1: #EEF1FB;
+      --bg-2: #F7F4FF;
+      --card: rgba(255, 255, 255, 0.72);
+      --text-1: #2B2D42;
+      --text-2: #6C6F85;
+      --success: #22C55E;
+      --danger: #EF4444;
+      --warn: #F59E0B;
+      --radius: 18px;
+      --shadow: 0 8px 30px rgba(91, 95, 233, 0.12);
+      --shadow-hover: 0 14px 40px rgba(91, 95, 233, 0.22);
+      --grad-brand: linear-gradient(120deg, #5B5FE9 0%, #7C4DFF 50%, #FF7A9A 100%);
+      --grad-top3: linear-gradient(120deg, #5B5FE9, #7C4DFF);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif;
+      color: var(--text-1);
+      min-height: 100vh;
+      background:
+        radial-gradient(1000px 500px at 85% -10%, rgba(255, 122, 154, 0.18), transparent 60%),
+        radial-gradient(900px 500px at -10% 20%, rgba(124, 77, 255, 0.16), transparent 60%),
+        linear-gradient(160deg, var(--bg-1) 0%, var(--bg-2) 55%, #FFF3F6 100%);
+      background-attachment: fixed;
+    }
+
+    /* ---------- 顶部横幅 ---------- */
+    .banner {
+      text-align: center;
+      padding: 48px 20px 28px;
+      animation: fadeDown 0.7s ease both;
+    }
+    .banner h1 {
+      font-size: 40px;
+      font-weight: 700;
+      letter-spacing: 4px;
+      background: var(--grad-brand);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      display: inline-block;
+    }
+    .banner h1::before { content: "✦ "; font-size: 26px; }
+    .banner p {
+      margin-top: 10px;
+      color: var(--text-2);
+      font-size: 15px;
+      letter-spacing: 1px;
+    }
+    .banner p .date-chip {
+      display: inline-block;
+      margin-left: 8px;
+      padding: 3px 12px;
+      border-radius: 999px;
+      background: var(--card);
+      border: 1px solid rgba(91, 95, 233, 0.18);
+      backdrop-filter: blur(6px);
+    }
+
+    /* ---------- 布局 ---------- */
+    .layout {
+      max-width: 1080px;
+      margin: 0 auto 60px;
+      padding: 0 20px;
+      display: grid;
+      grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+      gap: 28px;
+      align-items: start;
+    }
+
+    .card {
+      background: var(--card);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: 1px solid rgba(255, 255, 255, 0.65);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 26px;
+      transition: transform 0.25s ease, box-shadow 0.25s ease;
+      animation: fadeUp 0.7s ease both;
+    }
+    .card:hover { box-shadow: var(--shadow-hover); }
+
+    .card h2 {
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .card h2 .dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      background: var(--grad-brand);
+      box-shadow: 0 0 0 4px rgba(124, 77, 255, 0.15);
+    }
+    .card .sub { color: var(--text-2); font-size: 13px; margin-bottom: 18px; }
+
+    /* ---------- 热搜列表 ---------- */
+    .hot-item {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 13px 12px;
+      border-radius: 12px;
+      transition: background 0.2s ease, transform 0.2s ease;
+      cursor: default;
+      animation: fadeUp 0.5s ease both;
+    }
+    .hot-item:hover { background: rgba(124, 77, 255, 0.08); transform: translateX(4px); }
+    .hot-item + .hot-item { border-top: 1px dashed rgba(108, 111, 133, 0.18); }
+
+    .rank {
+      flex: none;
+      width: 30px; height: 30px;
+      display: grid; place-items: center;
+      border-radius: 10px;
+      font-size: 14px; font-weight: 700;
+      color: var(--text-2);
+      background: rgba(108, 111, 133, 0.1);
+    }
+    .rank.r1 { background: var(--grad-top3); color: #fff; box-shadow: 0 4px 12px rgba(124, 77, 255, 0.35); }
+    .rank.r2 { background: linear-gradient(120deg, #7C4DFF, #B388FF); color: #fff; box-shadow: 0 4px 12px rgba(124, 77, 255, 0.28); }
+    .rank.r3 { background: linear-gradient(120deg, #FF7A9A, #FFA45C); color: #fff; box-shadow: 0 4px 12px rgba(255, 122, 154, 0.35); }
+
+    .hot-main { flex: 1; min-width: 0; }
+    .hot-title {
+      font-size: 14.5px;
+      font-weight: 600;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .hot-meta { display: flex; align-items: center; gap: 8px; margin-top: 5px; }
+    .tag {
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 999px;
+      color: var(--primary);
+      background: rgba(91, 95, 233, 0.1);
+    }
+    .heat-bar {
+      flex: 1; max-width: 110px;
+      height: 5px;
+      border-radius: 999px;
+      background: rgba(108, 111, 133, 0.15);
+      overflow: hidden;
+    }
+    .heat-bar i {
+      display: block; height: 100%;
+      border-radius: 999px;
+      background: var(--grad-brand);
+      animation: grow 1s ease both;
+    }
+    .heat-num { font-size: 12px; color: var(--accent); font-weight: 600; min-width: 42px; text-align: right; }
+
+    /* ---------- 发布表单 ---------- */
+    .form-row { margin-bottom: 16px; }
+    .form-row label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-2);
+      margin-bottom: 7px;
+    }
+    .form-row input,
+    .form-row textarea {
+      width: 100%;
+      font: inherit;
+      font-size: 14px;
+      color: var(--text-1);
+      padding: 11px 14px;
+      border-radius: 12px;
+      border: 1.5px solid rgba(108, 111, 133, 0.25);
+      background: rgba(255, 255, 255, 0.85);
+      outline: none;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+      resize: vertical;
+    }
+    .form-row input:focus,
+    .form-row textarea:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 4px rgba(91, 95, 233, 0.12);
+    }
+    .form-row textarea { min-height: 96px; }
+
+    .btn-publish {
+      width: 100%;
+      padding: 13px;
+      font: inherit;
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      color: #fff;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      background: var(--grad-brand);
+      background-size: 180% 180%;
+      box-shadow: 0 8px 20px rgba(124, 77, 255, 0.32);
+      transition: transform 0.2s ease, box-shadow 0.2s ease, background-position 0.4s ease;
+    }
+    .btn-publish:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 26px rgba(124, 77, 255, 0.42);
+      background-position: 100% 0;
+    }
+    .btn-publish:active { transform: translateY(0); }
+
+    .hint {
+      min-height: 20px;
+      margin-top: 12px;
+      font-size: 13px;
+      text-align: center;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+    .hint.show { opacity: 1; }
+    .hint.err { color: var(--danger); }
+    .hint.ok { color: var(--success); }
+
+    /* ---------- 我的推送 ---------- */
+    .post-list { display: flex; flex-direction: column; gap: 16px; margin-top: 6px; }
+    .post {
+      background: rgba(255, 255, 255, 0.85);
+      border: 1px solid rgba(91, 95, 233, 0.12);
+      border-radius: 14px;
+      padding: 18px 20px;
+      transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease;
+      animation: popIn 0.45s ease both;
+    }
+    .post:hover { transform: translateY(-3px); box-shadow: 0 10px 24px rgba(91, 95, 233, 0.14); border-color: rgba(91, 95, 233, 0.3); }
+    .post-head { display: flex; align-items: flex-start; gap: 12px; }
+    .post-head h3 { flex: 1; font-size: 16px; font-weight: 700; line-height: 1.4; }
+    .post-time { flex: none; font-size: 12px; color: var(--text-2); margin-top: 3px; }
+    .post-body { margin-top: 8px; font-size: 14px; line-height: 1.75; color: var(--text-2); word-break: break-word; white-space: pre-wrap; }
+    .btn-del {
+      flex: none;
+      border: none;
+      background: transparent;
+      color: var(--text-2);
+      font-size: 15px;
+      cursor: pointer;
+      padding: 2px 8px;
+      border-radius: 8px;
+      transition: color 0.2s ease, background 0.2s ease, transform 0.2s ease;
+    }
+    .btn-del:hover { color: var(--danger); background: rgba(239, 68, 68, 0.1); transform: scale(1.1); }
+
+    .empty {
+      text-align: center;
+      padding: 34px 10px;
+      color: var(--text-2);
+      font-size: 14px;
+    }
+    .empty .icon { font-size: 34px; margin-bottom: 10px; opacity: 0.55; }
+
+    .ls-warn {
+      display: none;
+      margin-bottom: 14px;
+      padding: 10px 14px;
+      border-radius: 10px;
+      font-size: 13px;
+      color: #92400E;
+      background: rgba(245, 158, 11, 0.12);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+
+    /* ---------- 动画 ---------- */
+    @keyframes fadeDown { from { opacity: 0; transform: translateY(-18px); } to { opacity: 1; transform: none; } }
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+    @keyframes popIn { from { opacity: 0; transform: translateY(14px) scale(0.98); } to { opacity: 1; transform: none; } }
+    @keyframes grow { from { width: 0; } }
+
+    /* ---------- 响应式 ---------- */
+    @media (max-width: 860px) {
+      .layout { grid-template-columns: 1fr; }
+      .banner h1 { font-size: 32px; }
+    }
+
+    /* ---------- v1.1 搜索 ---------- */
+    .list-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+    }
+    .search-box { position: relative; flex: 1 1 200px; min-width: 0; }
+    .search-box .ico {
+      position: absolute;
+      left: 13px; top: 50%;
+      transform: translateY(-50%);
+      font-size: 12px;
+      color: var(--text-2);
+      pointer-events: none;
+    }
+    .search-box input {
+      width: 100%;
+      font: inherit;
+      font-size: 13.5px;
+      color: var(--text-1);
+      padding: 9px 14px 9px 33px;
+      border-radius: 999px;
+      border: 1.5px solid rgba(108, 111, 133, 0.22);
+      background: rgba(255, 255, 255, 0.85);
+      outline: none;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+    .search-box input::placeholder { color: rgba(108, 111, 133, 0.7); }
+    .search-box input:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 4px rgba(91, 95, 233, 0.12);
+    }
+    .count-chip { flex: none; font-size: 12px; color: var(--text-2); white-space: nowrap; }
+    .count-chip .mark { color: var(--primary-2); font-weight: 700; }
+
+    /* ---------- v1.1 条目动作区 ---------- */
+    .post-actions { flex: none; display: flex; align-items: center; gap: 2px; }
+    .btn-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      min-width: 32px; height: 32px;
+      padding: 0 8px;
+      font: inherit;
+      font-size: 14px;
+      line-height: 1;
+      color: var(--text-2);
+      background: transparent;
+      border: none;
+      border-radius: 9px;
+      cursor: pointer;
+      transition: color 0.2s ease, background 0.2s ease, transform 0.2s ease;
+    }
+    .btn-icon:hover { color: var(--primary); background: rgba(91, 95, 233, 0.1); transform: scale(1.1); }
+    .btn-icon.btn-del:hover { color: var(--danger); background: rgba(239, 68, 68, 0.1); transform: scale(1.1); }
+    .btn-like { font-size: 13px; font-weight: 600; }
+    .btn-like .num { font-size: 12px; }
+    .btn-like.liked {
+      color: #fff;
+      background: linear-gradient(120deg, var(--primary), var(--primary-2));
+      box-shadow: 0 4px 12px rgba(124, 77, 255, 0.32);
+      animation: likePop 0.34s ease;
+    }
+    .btn-like.liked:hover { color: #fff; transform: scale(1.06); }
+    @keyframes likePop {
+      0% { transform: scale(1); }
+      45% { transform: scale(1.18); }
+      100% { transform: scale(1); }
+    }
+
+    /* ---------- v1.1 编辑态 ---------- */
+    .post.editing {
+      position: relative;
+      border-color: rgba(124, 77, 255, 0.45);
+      box-shadow: 0 0 0 3px rgba(124, 77, 255, 0.12);
+    }
+    .post.editing::before {
+      content: "";
+      position: absolute;
+      left: 0; top: 14px; bottom: 14px;
+      width: 3px;
+      border-radius: 0 3px 3px 0;
+      background: var(--grad-brand);
+    }
+    .form-btns { display: flex; gap: 10px; }
+    .form-btns .btn-publish { flex: 1; width: auto; }
+    .btn-cancel {
+      display: none;
+      flex: none;
+      padding: 0 20px;
+      font: inherit;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-2);
+      background: rgba(255, 255, 255, 0.9);
+      border: 1.5px solid rgba(108, 111, 133, 0.25);
+      border-radius: 12px;
+      cursor: pointer;
+      transition: color 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+    }
+    .btn-cancel:hover {
+      color: var(--primary);
+      border-color: var(--primary);
+      background: rgba(91, 95, 233, 0.06);
+    }
+    .form-btns.edit-mode .btn-cancel { display: block; }
+
+    /* ---------- v1.1 热搜联动 ---------- */
+    .hot-item { cursor: pointer; }
+    .hot-item:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+    .hot-item .go {
+      flex: none;
+      font-size: 11px;
+      color: var(--primary);
+      white-space: nowrap;
+      opacity: 0;
+      transform: translateX(-4px);
+      transition: opacity 0.2s ease, transform 0.2s ease;
+    }
+    .hot-item:hover .go,
+    .hot-item:focus-visible .go { opacity: 1; transform: none; }
+
+    .flash { animation: flashRing 0.85s ease; }
+    @keyframes flashRing {
+      0%, 100% { box-shadow: 0 0 0 4px rgba(91, 95, 233, 0.12); }
+      40% { box-shadow: 0 0 0 8px rgba(124, 77, 255, 0.22); }
+    }
+
+    @media (max-width: 860px) {
+      .layout { grid-template-columns: minmax(0, 1fr); }
+      .card { min-width: 0; }
+      .search-box { flex: 1 1 100%; }
+      .list-head { align-items: stretch; }
+    }
+  </style>
+</head>
+<body>
+  <header class="banner">
+    <h1>小晶推送馆</h1>
+    <p>今日热点一览 · 分享你的最新动态<span class="date-chip" id="dateChip"></span></p>
+  </header>
+
+  <main class="layout">
+    <!-- 左侧：今日热搜 -->
+    <section class="card" aria-label="今日热搜">
+      <h2><span class="dot"></span>今日热搜</h2>
+      <p class="sub">看看世界正在关注什么</p>
+      <div id="hotList"></div>
+    </section>
+
+    <!-- 右侧：发布 + 我的推送 -->
+    <div style="display:flex; flex-direction:column; gap:28px; min-width:0;">
+      <section class="card" aria-label="发布推送" id="publishCard">
+        <h2><span class="dot"></span>发布推送</h2>
+        <p class="sub">记录此刻想法，仅保存在你的浏览器中</p>
+        <div class="ls-warn" id="lsWarn">⚠ 当前浏览器环境不支持本地存储，数据仅在本页面内临时保留。</div>
+        <form id="publishForm" novalidate>
+          <div class="form-row">
+            <label for="titleInput">标题</label>
+            <input type="text" id="titleInput" maxlength="60" placeholder="给这条推送起个标题（最多 60 字）" autocomplete="off">
+          </div>
+          <div class="form-row">
+            <label for="bodyInput">正文</label>
+            <textarea id="bodyInput" maxlength="1000" placeholder="想推送点什么？写下来吧（最多 1000 字）"></textarea>
+          </div>
+          <div class="form-btns" id="formBtns">
+            <button type="submit" class="btn-publish" id="submitBtn">发 布</button>
+            <button type="button" class="btn-cancel" id="cancelEditBtn">取消编辑</button>
+          </div>
+          <div class="hint" id="hint"></div>
+        </form>
+      </section>
+
+      <section class="card" aria-label="我的推送">
+        <h2><span class="dot"></span>我的推送</h2>
+        <div class="list-head">
+          <div class="search-box">
+            <span class="ico">🔍</span>
+            <input type="search" id="searchInput" placeholder="搜索标题或正文…" autocomplete="off" aria-label="搜索我的推送">
+          </div>
+          <span class="count-chip" id="postCount">共 0 条</span>
+        </div>
+        <div class="post-list" id="postList"></div>
+      </section>
+    </div>
+  </main>
+
+  <script>
+    "use strict";
+
+    /* ================= 数据层 ================= */
+    const STORAGE_KEY = "xjjg_posts";
+
+    // Local Storage 不可用（隐私模式等）时降级为内存态
+    const memoryStore = { posts: null };
+
+    function storageAvailable() {
+      try {
+        const k = "__xjjg_test__";
+        localStorage.setItem(k, "1");
+        localStorage.removeItem(k);
+        return true;
+      } catch (e) {
+        return false;
+      }
+    }
+    const hasLS = storageAvailable();
+
+    function loadPosts() {
+      if (!hasLS) return memoryStore.posts ? normalizeAll(memoryStore.posts) : [];
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        const arr = raw ? JSON.parse(raw) : [];
+        if (!Array.isArray(arr)) return [];
+        return normalizeAll(arr);
+      } catch (e) {
+        // JSON 解析失败等，回退为空
+        return [];
+      }
+    }
+
+    // 兼容 v1.0 数据：补齐 likes / liked 字段并做长度与类型兜底
+    function normalizeAll(arr) {
+      return arr.filter(p => p && typeof p.id === "number" &&
+        (typeof p.title === "string" || typeof p.body === "string")
+      ).map(p => ({
+        id: p.id,
+        title: typeof p.title === "string" ? p.title.slice(0, 60) : "",
+        body: typeof p.body === "string" ? p.body.slice(0, 1000) : "",
+        time: typeof p.time === "number" ? p.time : Date.now(),
+        likes: typeof p.likes === "number" && p.likes > 0 ? Math.floor(p.likes) : 0,
+        liked: p.liked === true
+      }));
+    }
+
+    function savePosts(list) {
+      if (!hasLS) { memoryStore.posts = list.slice(); return false; }
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+        return true;
+      } catch (e) {
+        // 存储已满等极端情况，降级到内存并提示
+        memoryStore.posts = list.slice();
+        showHint("本地存储写入失败，本次改动重启后会丢失", false);
+        return false;
+      }
+    }
+
+    // 单调唯一 id，避免同一毫秒内连续发布产生重复 id
+    let idSeq = 0;
+    function nextId() {
+      idSeq += 1;
+      return Date.now() * 1000 + idSeq;
+    }
+
+    let posts = loadPosts();
+    let editingId = null;   // 非空表示正在编辑该条推送
+    let keyword = "";       // 搜索关键词
+
+    /* ================= 工具 ================= */
+    function escapeHtml(str) {
+      return String(str)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    }
+
+    function formatTime(ts) {
+      const d = new Date(ts);
+      const pad = n => String(n).padStart(2, "0");
+      return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()) +
+        " " + pad(d.getHours()) + ":" + pad(d.getMinutes());
+    }
+
+    function showHint(text, ok) {
+      const el = document.getElementById("hint");
+      el.textContent = text;
+      el.className = "hint show " + (ok ? "ok" : "err");
+      clearTimeout(showHint._t);
+      showHint._t = setTimeout(() => { el.className = "hint"; }, 2600);
+    }
+
+    function flash(el) {
+      el.classList.remove("flash");
+      void el.offsetWidth;
+      el.classList.add("flash");
+      setTimeout(() => el.classList.remove("flash"), 900);
+    }
+
+    /* ---------- 常用元素引用 ---------- */
+    const elPublishCard = document.getElementById("publishCard");
+    const elFormBtns = document.getElementById("formBtns");
+    const elSubmit = document.getElementById("submitBtn");
+    const elTitle = document.getElementById("titleInput");
+    const elBody = document.getElementById("bodyInput");
+
+    /* ================= 内置模拟热搜 ================= */
+    const HOT_TOPICS = [
+      { title: "AI 智能体全面进入办公场景，效率工具迎来新变革", cat: "科技" },
+      { title: "国产大模型多模态能力再突破，图形理解准确率创新高", cat: "科技" },
+      { title: "全国秋季文旅消费季启动，多个热门景区推出惠民票", cat: "社会" },
+      { title: "新片周末上映，首日预售票房刷新同档期纪录", cat: "娱乐" },
+      { title: "城市马拉松周末开跑，数万名跑者报名参与", cat: "体育" },
+      { title: "新能源汽车下乡政策加码，充电桩建设提速", cat: "财经" },
+      { title: "高校开设人工智能通识课，选课人数持续走高", cat: "教育" },
+      { title: "冬日游升温，温泉与滑雪目的地搜索量环比大涨", cat: "生活" },
+      { title: "考古新发现：古城遗址出土罕见青铜器群", cat: "文化" },
+      { title: "全球游戏展会临近，多款国产新作曝光引热议", cat: "娱乐" }
+    ];
+
+    function renderHotList() {
+      const list = document.getElementById("hotList");
+      // 按日期做种子，让热度值每天略有变化，体现"今日"感
+      const daySeed = Number(
+        new Date().toISOString().slice(0, 10).replace(/-/g, "")
+      );
+      const data = HOT_TOPICS.map((t, i) => {
+        const seed = (daySeed + i * 7) % 23;
+        return Object.assign({}, t, { heat: 60 + seed });
+      }).sort((a, b) => b.heat - a.heat);
+
+      list.innerHTML = data.map((t, i) => {
+        const n = i + 1;
+        const rankCls = n <= 3 ? "rank r" + n : "rank";
+        const safeTitle = escapeHtml(t.title);
+        return (
+          '<div class="hot-item" role="button" tabindex="0" data-title="' + safeTitle + '"' +
+            ' aria-label="' + safeTitle + '，点击预填到发布表单"' +
+            ' style="animation-delay:' + (i * 60) + 'ms">' +
+            '<span class="' + rankCls + '">' + n + '</span>' +
+            '<div class="hot-main">' +
+              '<div class="hot-title">' + safeTitle + '</div>' +
+              '<div class="hot-meta">' +
+                '<span class="tag">' + escapeHtml(t.cat) + '</span>' +
+                '<span class="heat-bar"><i style="width:' + t.heat + '%"></i></span>' +
+                '<span class="heat-num">' + t.heat + ' 万热度</span>' +
+              '</div>' +
+            '</div>' +
+            '<span class="go">去发布 ›</span>' +
+          '</div>'
+        );
+      }).join("");
+    }
+
+    function prefillFromHot(title) {
+      if (editingId !== null) exitEdit(true);
+      elTitle.value = title || "";
+      elPublishCard.scrollIntoView({ behavior: "smooth", block: "start" });
+      elBody.focus({ preventScroll: true });
+      flash(elTitle);
+      showHint("已预填热点标题，写下你的看法吧～", true);
+    }
+
+    document.getElementById("hotList").addEventListener("click", e => {
+      const item = e.target.closest(".hot-item");
+      if (!item) return;
+      prefillFromHot(item.dataset.title || "");
+    });
+
+    document.getElementById("hotList").addEventListener("keydown", e => {
+      if (e.key !== "Enter" && e.key !== " ") return;
+      const item = e.target.closest(".hot-item");
+      if (!item) return;
+      e.preventDefault();
+      prefillFromHot(item.dataset.title || "");
+    });
+
+    /* ================= 我的推送 ================= */
+    function filterPosts() {
+      const kw = keyword.trim().toLowerCase();
+      const sorted = posts.slice().sort((a, b) => b.time - a.time);
+      if (!kw) return { list: sorted, total: posts.length, kw: kw };
+      const hit = sorted.filter(p => (p.title + " " + p.body).toLowerCase().indexOf(kw) !== -1);
+      return { list: hit, total: posts.length, kw: kw };
+    }
+
+    function renderPosts() {
+      const list = document.getElementById("postList");
+      const countEl = document.getElementById("postCount");
+      const result = filterPosts();
+
+      countEl.innerHTML = result.kw && result.total > 0
+        ? "共 " + result.total + " 条 · 命中 <span class=\"mark\">" + result.list.length + "</span> 条"
+        : "共 " + result.total + " 条";
+
+      if (result.total === 0) {
+        list.innerHTML =
+          '<div class="empty"><div class="icon">📭</div>还没有推送，快来发布第一条吧！</div>';
+        return;
+      }
+
+      if (result.list.length === 0) {
+        list.innerHTML =
+          '<div class="empty"><div class="icon">🔍</div>没有匹配「' + escapeHtml(keyword.trim()) + '」的推送' +
+          '<div style="font-size:12px;margin-top:8px;opacity:.8">换个关键词试试，或清空搜索框</div></div>';
+        return;
+      }
+
+      list.innerHTML = result.list.map(p => {
+        const editing = p.id === editingId;
+        return '<article class="post' + (editing ? " editing" : "") + '">' +
+          '<div class="post-head">' +
+            '<h3>' + escapeHtml(p.title) + '</h3>' +
+            '<span class="post-time">' + formatTime(p.time) + '</span>' +
+            '<div class="post-actions">' +
+              '<button class="btn-icon" data-action="edit" data-id="' + p.id + '"' +
+                ' title="编辑这条推送" aria-label="编辑推送">✎</button>' +
+              '<button class="btn-icon btn-like' + (p.liked ? " liked" : "") + '" data-action="like" data-id="' + p.id + '"' +
+                ' title="' + (p.liked ? "取消点赞" : "点赞") + '" aria-label="点赞" aria-pressed="' + (p.liked ? "true" : "false") + '">♥' +
+                (p.likes > 0 ? '<span class="num">' + p.likes + '</span>' : '') + '</button>' +
+              '<button class="btn-icon btn-del" data-action="delete" data-id="' + p.id + '"' +
+                ' title="删除这条推送" aria-label="删除推送">✕</button>' +
+            '</div>' +
+          '</div>' +
+          '<div class="post-body">' + escapeHtml(p.body) + '</div>' +
+        '</article>';
+      }).join("");
+    }
+
+    /* ---------- 编辑态 ---------- */
+    function startEdit(post) {
+      editingId = post.id;
+      elTitle.value = post.title;
+      elBody.value = post.body;
+      elSubmit.textContent = "保存修改";
+      elFormBtns.classList.add("edit-mode");
+      renderPosts();
+      elPublishCard.scrollIntoView({ behavior: "smooth", block: "start" });
+      elTitle.focus({ preventScroll: true });
+      flash(elTitle);
+      showHint("正在编辑，可修改后保存", true);
+    }
+
+    function exitEdit(silent) {
+      editingId = null;
+      elFormBtns.classList.remove("edit-mode");
+      elSubmit.textContent = "发 布";
+      elTitle.value = "";
+      elBody.value = "";
+      renderPosts();
+      if (!silent) showHint("已取消编辑", true);
+    }
+
+    /* ---------- 列表动作委托 ---------- */
+    document.getElementById("postList").addEventListener("click", e => {
+      const btn = e.target.closest("[data-action]");
+      if (!btn) return;
+      const id = Number(btn.dataset.id);
+      const post = posts.find(p => p.id === id);
+      if (!post) return;
+      const action = btn.dataset.action;
+
+      if (action === "like") {
+        if (post.liked) {
+          post.liked = false;
+          post.likes = Math.max(0, post.likes - 1);
+        } else {
+          post.liked = true;
+          post.likes += 1;
+        }
+        savePosts(posts);
+        renderPosts();
+        return;
+      }
+
+      if (action === "edit") {
+        startEdit(post);
+        return;
+      }
+
+      if (action === "delete") {
+        const label = "「" + post.title.slice(0, 12) + (post.title.length > 12 ? "…" : "") + "」";
+        if (!confirm("确定要删除" + label + "吗？")) return;
+        posts = posts.filter(p => p.id !== id);
+        if (editingId === id) exitEdit(true);
+        savePosts(posts);
+        renderPosts();
+        showHint("已删除 ✓", true);
+      }
+    });
+
+    /* ---------- 搜索 ---------- */
+    const elSearch = document.getElementById("searchInput");
+    elSearch.addEventListener("input", () => {
+      clearTimeout(elSearch._t);
+      elSearch._t = setTimeout(() => {
+        keyword = elSearch.value;
+        renderPosts();
+      }, 120);
+    });
+
+    /* ================= 发布表单 ================= */
+    document.getElementById("publishForm").addEventListener("submit", e => {
+      e.preventDefault();
+      const title = elTitle.value.trim();
+      const body = elBody.value.trim();
+
+      if (!title && !body) { showHint("标题和正文不能都为空哦～", false); return; }
+      if (!title) { showHint("请填写标题", false); elTitle.focus(); return; }
+      if (!body) { showHint("请填写正文内容", false); elBody.focus(); return; }
+
+      if (editingId === null) {
+        posts.push({
+          id: nextId(),
+          title: title,
+          body: body,
+          time: Date.now(),
+          likes: 0,
+          liked: false
+        });
+        savePosts(posts);
+        renderPosts();
+        elTitle.value = "";
+        elBody.value = "";
+        elTitle.focus();
+        showHint("发布成功 ✓ 已保存到本地", true);
+        return;
+      }
+
+      const post = posts.find(p => p.id === editingId);
+      if (!post) { exitEdit(true); showHint("该推送已不存在", false); return; }
+
+      post.title = title;
+      post.body = body;
+      post.time = Date.now();
+      exitEdit(true);
+      savePosts(posts);
+      renderPosts();
+      showHint("修改已保存 ✓", true);
+    });
+
+    document.getElementById("cancelEditBtn").addEventListener("click", () => {
+      if (editingId === null) return;
+      exitEdit(false);
+      elTitle.focus();
+    });
+
+    /* ================= 初始化 ================= */
+    (function init() {
+      const d = new Date();
+      const wd = ["日", "一", "二", "三", "四", "五", "六"][d.getDay()];
+      const pad = n => String(n).padStart(2, "0");
+      document.getElementById("dateChip").textContent =
+        d.getFullYear() + " 年 " + (d.getMonth() + 1) + " 月 " + d.getDate() + " 日 · 星期" + wd;
+
+      if (!hasLS) document.getElementById("lsWarn").style.display = "block";
+
+      renderHotList();
+      renderPosts();
+    })();
+  </script>
+</body>
+</html>

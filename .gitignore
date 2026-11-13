@@ -1,6 +1,19 @@
-# 浏览器自动化临时输出
-.playwright-cli/
+# 依赖与构建产物
+node_modules/
+dist/
+coverage/
+*.local
 
-# 系统文件
+# 日志
+*.log
+npm-debug.log*
+
+# 编辑器与系统文件
+.vscode/*
+!.vscode/extensions.json
+.idea/
 Thumbs.db
 .DS_Store
+
+# 浏览器自动化临时输出
+.playwright-cli/
