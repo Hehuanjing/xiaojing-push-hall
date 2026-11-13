@@ -90,6 +90,11 @@ body {
 }
 
 .warn-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
   margin-bottom: 14px;
   padding: 10px 14px;
   border-radius: 10px;
@@ -97,6 +102,22 @@ body {
   background: rgba(245, 158, 11, 0.12);
   font-size: 13px;
   color: #92400e;
+}
+.warn-retry {
+  flex: none;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 12px;
+  color: #92400e;
+  background: rgba(255, 255, 255, 0.75);
+  border: 1px solid rgba(245, 158, 11, 0.45);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+.warn-retry:hover {
+  background: #fff;
 }
 
 @keyframes fadeDown {

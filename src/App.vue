@@ -10,9 +10,13 @@ const store = usePostsStore()
 const publishArea = useTemplateRef('publishArea')
 const publishCard = useTemplateRef('publishCard')
 
-onMounted(() => {
-  store.load()
+onMounted(async () => {
+  await store.load()
 })
+
+async function reconnect() {
+  await store.load()
+}
 
 function onPrefill(title) {
   publishArea.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
@@ -28,9 +32,10 @@ function onPrefill(title) {
 
     <div class="layout-side">
       <div ref="publishArea" class="publish-area">
-        <p v-if="!store.storageAvailable" class="warn-bar" role="alert">
-          ⚠ 当前浏览器环境不支持本地存储，数据仅在本页面内临时保留。
-        </p>
+        <div v-if="!store.apiAvailable" class="warn-bar" role="alert">
+          <span>⚠ 服务端暂不可用，已切换到本地缓存模式。</span>
+          <button type="button" class="warn-retry" @click="reconnect">重试连接</button>
+        </div>
         <PublishCard ref="publishCard" />
       </div>
       <PostListCard />

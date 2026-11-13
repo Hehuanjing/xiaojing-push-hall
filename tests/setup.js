@@ -1,11 +1,15 @@
 import { afterEach, beforeEach, vi } from 'vitest'
 
+function hasLocalStorage() {
+  return typeof localStorage !== 'undefined' && localStorage !== null
+}
+
 beforeEach(() => {
-  localStorage.clear()
+  if (hasLocalStorage()) localStorage.clear()
 })
 
 afterEach(() => {
   vi.restoreAllMocks()
   vi.useRealTimers()
-  localStorage.clear()
+  if (hasLocalStorage()) localStorage.clear()
 })

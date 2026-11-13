@@ -1,18 +1,22 @@
 {
   "name": "xiaojing-push-hall",
   "private": true,
-  "version": "2.0.0",
+  "version": "2.1.0",
   "type": "module",
-  "description": "小晶推送馆 - 今日热搜与个人推送，Vue 3 + Pinia + localStorage 实现",
+  "description": "小晶推送馆 - 今日热搜与个人推送，Vue 3 + Pinia + Hono 内存存储后端（localStorage 离线降级）",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "server": "node server/index.js",
+    "start": "npm run build && node server/index.js",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
     "coverage": "vitest run --coverage"
   },
   "dependencies": {
+    "@hono/node-server": "^2.1.8",
+    "hono": "^4.13.18",
     "pinia": "^4.1.0",
     "vue": "^3.5.45"
   },

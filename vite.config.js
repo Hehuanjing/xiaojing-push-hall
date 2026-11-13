@@ -4,7 +4,13 @@ import vue from '@vitejs/plugin-vue'
 export default defineConfig({
   plugins: [vue()],
   server: {
-    port: 5173
+    port: 5173,
+    proxy: {
+      '/api': {
+        target: 'http://localhost:8787',
+        changeOrigin: true
+      }
+    }
   },
   test: {
     environment: 'jsdom',
@@ -13,8 +19,8 @@ export default defineConfig({
     include: ['tests/**/*.spec.js'],
     coverage: {
       provider: 'v8',
-      include: ['src/**/*.{js,vue}'],
-      exclude: ['src/main.js']
+      include: ['src/**/*.{js,vue}', 'server/**/*.js', 'shared/**/*.js'],
+      exclude: ['src/main.js', 'server/index.js']
     }
   }
 })

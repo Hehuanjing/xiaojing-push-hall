@@ -6,7 +6,7 @@ import PostItem from './PostItem.vue'
 import SearchBox from './SearchBox.vue'
 
 const store = usePostsStore()
-const { filteredPosts, counts, editingId, keyword } = storeToRefs(store)
+const { filteredPosts, counts, editingId, keyword, loading } = storeToRefs(store)
 
 const countLabel = computed(() => {
   const { total, matched, isFiltering } = counts.value
@@ -22,17 +22,17 @@ function onEdit(id) {
   store.startEdit(id)
 }
 
-function onLike(id) {
-  store.toggleLike(id)
+async function onLike(id) {
+  await store.toggleLike(id)
 }
 
-function onDelete(id) {
+async function onDelete(id) {
   const post = store.posts.find((item) => item.id === id)
   const shortTitle = post
     ? `「${post.title.slice(0, 12)}${post.title.length > 12 ? '…' : ''}」`
     : '这条推送'
   if (!window.confirm(`确定要删除${shortTitle}吗？`)) return
-  store.remove(id)
+  await store.remove(id)
 }
 </script>
 
@@ -47,7 +47,11 @@ function onDelete(id) {
       <span class="count-chip">{{ countLabel }}</span>
     </div>
 
-    <div v-if="counts.total === 0" class="empty">
+    <div v-if="loading" class="empty">
+      <div class="empty-icon" aria-hidden="true">⏳</div>
+      正在从服务端加载推送…
+    </div>
+    <div v-else-if="counts.total === 0" class="empty">
       <div class="empty-icon" aria-hidden="true">📭</div>
       还没有推送，快来发布第一条吧！
     </div>

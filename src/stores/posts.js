@@ -1,16 +1,30 @@
 import { computed, ref, shallowRef } from 'vue'
 import { defineStore } from 'pinia'
-import { isStorageAvailable, readPosts, writePosts } from '../services/postStorage.js'
+import { createPostsApi } from '../services/postApi.js'
+import { readPosts, writePosts } from '../services/postStorage.js'
+import {
+  VALIDATION_MESSAGE,
+  normalizePost,
+  normalizePosts,
+  validatePostInput
+} from '../../shared/postSchema.js'
 
 const MESSAGE = {
-  empty: '标题和正文不能都为空哦～',
-  title: '请填写标题',
-  body: '请填写正文内容',
-  published: '发布成功 ✓ 已保存到本地',
+  published: '发布成功 ✓ 已同步到服务端',
+  publishedOffline: '发布成功 ✓ 已暂存到本地缓存',
   updated: '修改已保存 ✓',
-  unavailable: '当前浏览器环境不支持本地存储，数据仅在本页面内临时保留',
+  updatedOffline: '修改已保存 ✓ 已暂存到本地缓存',
+  offline: '服务端暂不可用，已切换到本地缓存模式',
   noTarget: '没有正在编辑的推送',
-  missing: '该推送已不存在'
+  missing: '该推送已不存在',
+  requestFailed: '操作失败，请稍后重试',
+  cacheUnavailable: '已保存，但本地缓存不可用，刷新后会丢失'
+}
+
+/** 网络不可达（status 0）或服务端 5xx 视为后端不可用，可降级到本地缓存 */
+function isUnavailable(error) {
+  if (!error || typeof error.status !== 'number') return true
+  return error.status === 0 || error.status >= 500
 }
 
 export const usePostsStore = defineStore('posts', () => {
@@ -18,11 +32,14 @@ export const usePostsStore = defineStore('posts', () => {
   const keyword = shallowRef('')
   const editingId = shallowRef(null)
   const lastError = shallowRef('')
-  const storageAvailable = shallowRef(true)
+  const apiAvailable = shallowRef(true)
+  const loading = shallowRef(false)
 
-  // 可注入的存储（测试用），默认回落到 window.localStorage
-  let storage
+  // 可注入的后端客户端（测试/自定义环境）；默认走同源 /api
+  let api = createPostsApi()
   let idSeq = 0
+  // 同一条目的点赞请求在途时忽略重复点击，避免基于陈旧状态连发
+  const pendingLikes = new Set()
 
   // 同一毫秒内发布的条目用 id 兜底排序，保证新发布的始终在前
   const sortedPosts = computed(() =>
@@ -51,50 +68,101 @@ export const usePostsStore = defineStore('posts', () => {
     () => posts.value.find((post) => post.id === editingId.value) || null
   )
 
+  function configure(options = {}) {
+    if (options.api) api = options.api
+  }
+
   function nextId() {
     idSeq += 1
     return Date.now() * 1000 + idSeq
   }
 
-  function validate(payload) {
-    const title = typeof payload?.title === 'string' ? payload.title.trim() : ''
-    const body = typeof payload?.body === 'string' ? payload.body.trim() : ''
-    if (!title && !body) return { ok: false, message: MESSAGE.empty }
-    if (!title) return { ok: false, message: MESSAGE.title }
-    if (!body) return { ok: false, message: MESSAGE.body }
-    return { ok: true, title, body }
+  function markOnline() {
+    apiAvailable.value = true
+    lastError.value = ''
   }
 
-  function persist() {
-    const result = writePosts(posts.value, storage)
-    storageAvailable.value = result.ok
-    lastError.value = result.ok ? '' : result.error
-    return result.ok
+  function markOffline() {
+    apiAvailable.value = false
+    lastError.value = MESSAGE.offline
   }
 
-  /** 读取本地数据；传入 storage 可替换存储实现（测试注入） */
-  function load(target) {
-    if (target !== undefined) storage = target
-    const available = isStorageAvailable(storage)
-    storageAvailable.value = available
-    posts.value = readPosts(storage)
-    lastError.value = available ? '' : MESSAGE.unavailable
+  /** @returns {boolean} 缓存是否写入成功（失败只影响离线能力，不改变在线状态） */
+  function persistCache() {
+    return writePosts(posts.value).ok
   }
 
-  function publish(payload) {
-    const checked = validate(payload)
+  /** 原地合并服务端结果，保持对象引用稳定，避免编辑中的表单被 watch 重置 */
+  function replacePost(post) {
+    const normalized = normalizePost(post)
+    if (!normalized) return null
+    const target = posts.value.find((item) => item.id === normalized.id)
+    if (target) Object.assign(target, normalized)
+    else posts.value.push(normalized)
+    return normalized
+  }
+
+  function dropLocal(id) {
+    posts.value = posts.value.filter((post) => post.id !== id)
+    if (editingId.value === id) editingId.value = null
+  }
+
+  /** 读取数据：优先服务端，失败则回落到本地缓存 */
+  async function load() {
+    loading.value = true
+    try {
+      const list = await api.list()
+      posts.value = normalizePosts(list)
+      markOnline()
+      persistCache()
+      return { ok: true }
+    } catch {
+      posts.value = readPosts()
+      markOffline()
+      return { ok: false, message: MESSAGE.offline }
+    } finally {
+      loading.value = false
+    }
+  }
+
+  async function publish(payload) {
+    const checked = validatePostInput(payload)
     if (!checked.ok) return { ok: false, message: checked.message }
 
-    posts.value.push({
-      id: nextId(),
-      title: checked.title,
-      body: checked.body,
-      time: Date.now(),
-      likes: 0,
-      liked: false
-    })
-    persist()
-    return { ok: true, message: MESSAGE.published }
+    const content = { title: checked.title, body: checked.body }
+
+    try {
+      const created = await api.create(content)
+      const normalized = normalizePost(created)
+      if (!normalized) {
+        const error = new Error(MESSAGE.requestFailed)
+        error.status = 502
+        throw error
+      }
+
+      replacePost(normalized)
+      markOnline()
+      persistCache()
+      return { ok: true, message: MESSAGE.published }
+    } catch (error) {
+      if (!isUnavailable(error)) {
+        const message = error?.message || MESSAGE.requestFailed
+        lastError.value = message
+        return { ok: false, message }
+      }
+
+      posts.value.push({
+        id: nextId(),
+        title: content.title,
+        body: content.body,
+        time: Date.now(),
+        likes: 0,
+        liked: false
+      })
+      markOffline()
+      const cached = persistCache()
+      return { ok: true, message: cached ? MESSAGE.publishedOffline : MESSAGE.cacheUnavailable }
+    }
   }
 
   function startEdit(id) {
@@ -102,51 +170,126 @@ export const usePostsStore = defineStore('posts', () => {
     editingId.value = id
   }
 
-  function updateEditing(payload) {
+  async function updateEditing(payload) {
     if (editingId.value === null) return { ok: false, message: MESSAGE.noTarget }
 
-    const checked = validate(payload)
+    const checked = validatePostInput(payload)
     if (!checked.ok) return { ok: false, message: checked.message }
 
-    const post = posts.value.find((item) => item.id === editingId.value)
-    if (!post) {
+    const id = editingId.value
+    const target = posts.value.find((post) => post.id === id)
+    if (!target) {
       editingId.value = null
       return { ok: false, message: MESSAGE.missing }
     }
 
-    post.title = checked.title
-    post.body = checked.body
-    post.time = Date.now()
-    editingId.value = null
-    persist()
-    return { ok: true, message: MESSAGE.updated }
+    const content = { title: checked.title, body: checked.body }
+
+    try {
+      const updated = await api.update(id, content)
+      replacePost(updated)
+      editingId.value = null
+      markOnline()
+      persistCache()
+      return { ok: true, message: MESSAGE.updated }
+    } catch (error) {
+      if (error?.status === 404) {
+        editingId.value = null
+        return { ok: false, message: MESSAGE.missing }
+      }
+
+      if (!isUnavailable(error)) {
+        const message = error?.message || MESSAGE.requestFailed
+        lastError.value = message
+        return { ok: false, message }
+      }
+
+      target.title = content.title
+      target.body = content.body
+      target.time = Date.now()
+      editingId.value = null
+      markOffline()
+      const cached = persistCache()
+      return { ok: true, message: cached ? MESSAGE.updatedOffline : MESSAGE.cacheUnavailable }
+    }
   }
 
   function cancelEdit() {
     editingId.value = null
   }
 
-  function toggleLike(id) {
-    const post = posts.value.find((item) => item.id === id)
-    if (!post) return
+  async function toggleLike(id) {
+    if (pendingLikes.has(id)) return { ok: false, message: '' }
 
-    if (post.liked) {
-      post.liked = false
-      post.likes = Math.max(0, post.likes - 1)
-    } else {
-      post.liked = true
-      post.likes += 1
+    pendingLikes.add(id)
+    try {
+      return await doToggleLike(id)
+    } finally {
+      pendingLikes.delete(id)
     }
-    persist()
   }
 
-  function remove(id) {
-    const remaining = posts.value.filter((post) => post.id !== id)
-    if (remaining.length === posts.value.length) return
+  function applyLocalLike(post, nextLiked) {
+    post.liked = nextLiked
+    post.likes = Math.max(0, post.likes + (nextLiked ? 1 : -1))
+  }
 
-    posts.value = remaining
-    if (editingId.value === id) editingId.value = null
-    persist()
+  async function doToggleLike(id) {
+    const post = posts.value.find((item) => item.id === id)
+    if (!post) return { ok: false, message: MESSAGE.missing }
+
+    const nextLiked = !post.liked
+
+    try {
+      const updated = await api.like(id, nextLiked)
+      replacePost(updated)
+      markOnline()
+      persistCache()
+      return { ok: true, message: '' }
+    } catch (error) {
+      // 404 说明服务端没有这条（多为离线期间新建），保留本地内容而不是删除
+      if (error?.status === 404) {
+        applyLocalLike(post, nextLiked)
+        persistCache()
+        return { ok: true, message: MESSAGE.missing }
+      }
+
+      if (!isUnavailable(error)) {
+        const message = error?.message || MESSAGE.requestFailed
+        lastError.value = message
+        return { ok: false, message }
+      }
+
+      applyLocalLike(post, nextLiked)
+      markOffline()
+      persistCache()
+      return { ok: true, message: '' }
+    }
+  }
+
+  async function remove(id) {
+    if (!posts.value.some((post) => post.id === id)) {
+      return { ok: false, message: MESSAGE.missing }
+    }
+
+    try {
+      await api.remove(id)
+      markOnline()
+    } catch (error) {
+      // 404 说明服务端已经没有该条目，继续清理本地即可
+      if (error?.status !== 404) {
+        if (!isUnavailable(error)) {
+          const message = error?.message || MESSAGE.requestFailed
+          lastError.value = message
+          return { ok: false, message }
+        }
+        markOffline()
+      }
+    }
+
+    dropLocal(id)
+    persistCache()
+    return { ok: true, message: '' }
   }
 
   function setKeyword(value) {
@@ -163,7 +306,8 @@ export const usePostsStore = defineStore('posts', () => {
     keyword,
     editingId,
     lastError,
-    storageAvailable,
+    apiAvailable,
+    loading,
     // getters
     sortedPosts,
     filteredPosts,
@@ -171,6 +315,7 @@ export const usePostsStore = defineStore('posts', () => {
     editingPost,
     isFiltering,
     // actions
+    configure,
     load,
     publish,
     startEdit,

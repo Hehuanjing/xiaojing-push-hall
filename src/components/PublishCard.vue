@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, shallowRef, useTemplateRef, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { usePostsStore } from '../stores/posts.js'
+import { BODY_MAX, TITLE_MAX } from '../../shared/postSchema.js'
 
 const HINT_DURATION = 2600
 
@@ -12,6 +13,7 @@ const title = shallowRef('')
 const body = shallowRef('')
 const hint = shallowRef('')
 const hintType = shallowRef('ok')
+const submitting = shallowRef(false)
 
 const titleInput = useTemplateRef('titleInput')
 const bodyInput = useTemplateRef('bodyInput')
@@ -46,14 +48,21 @@ function resetForm() {
   body.value = ''
 }
 
-function submit() {
-  const payload = { title: title.value, body: body.value }
-  const result = editingPost.value
-    ? store.updateEditing(payload)
-    : store.publish(payload)
+async function submit() {
+  if (submitting.value) return
+  submitting.value = true
 
-  showHint(result.message, result.ok)
-  if (result.ok) resetForm()
+  try {
+    const payload = { title: title.value, body: body.value }
+    const result = editingPost.value
+      ? await store.updateEditing(payload)
+      : await store.publish(payload)
+
+    showHint(result.message, result.ok)
+    if (result.ok) resetForm()
+  } finally {
+    submitting.value = false
+  }
 }
 
 function cancel() {
@@ -86,7 +95,7 @@ defineExpose({ prefill, focusTitle })
     <h2 class="card-title">
       <span class="dot" aria-hidden="true" />{{ heading }}
     </h2>
-    <p class="card-sub">记录此刻想法，仅保存在你的浏览器中</p>
+    <p class="card-sub">记录此刻想法，发布后同步到服务端；离线时暂存在本地</p>
 
     <form class="publish-form" @submit.prevent="submit">
       <div class="form-row">
@@ -97,8 +106,8 @@ defineExpose({ prefill, focusTitle })
           v-model="title"
           class="form-input"
           type="text"
-          maxlength="60"
-          placeholder="给这条推送起个标题（最多 60 字）"
+          :maxlength="TITLE_MAX"
+          :placeholder="`给这条推送起个标题（最多 ${TITLE_MAX} 字）`"
           autocomplete="off"
         />
       </div>
@@ -109,12 +118,12 @@ defineExpose({ prefill, focusTitle })
           ref="bodyInput"
           v-model="body"
           class="form-textarea"
-          maxlength="1000"
-          placeholder="想推送点什么？写下来吧（最多 1000 字）"
+          :maxlength="BODY_MAX"
+          :placeholder="`想推送点什么？写下来吧（最多 ${BODY_MAX} 字）`"
         />
       </div>
       <div class="form-btns" :class="{ 'edit-mode': isEditing }">
-        <button type="submit" class="btn-publish">{{ submitLabel }}</button>
+        <button type="submit" class="btn-publish" :disabled="submitting">{{ submitLabel }}</button>
         <button v-if="isEditing" type="button" class="btn-cancel" @click="cancel">取消编辑</button>
       </div>
       <p class="hint" :class="[hintType, { show: hint }]" role="status">{{ hint }}</p>
